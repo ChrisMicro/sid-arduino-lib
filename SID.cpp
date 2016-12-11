@@ -499,7 +499,8 @@ void SID::play(uint8_t voice, uint16_t freq){
 ///////////////////////////////////////////////////////////////////////////////////
 void SID::setFrequency(uint8_t voiceNumber, uint16_t frequency_Hz)
 {
-	osc[voiceNumber].freq_coefficient=(uint32_t) frequency_Hz*17*4000/SAMPLEFREQ;
+	//osc[voiceNumber].freq_coefficient=(uint32_t) frequency_Hz*17*4000/SAMPLEFREQ;
+	osc[voiceNumber].freq_coefficient=(uint32_t) frequency_Hz*66049/SAMPLEFREQ;
 }
 
 /*
