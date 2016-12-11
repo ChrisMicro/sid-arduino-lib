@@ -1,9 +1,11 @@
 /*
+ 
  SID.cpp - Atmega8 MOS6581 SID Emulator
+ 
  Copyright (c) 2007 Christoph Haberer, christoph(at)roboterclub-freiburg.de
  Arduino Library Conversion by Mario Patino, cybernesto(at)gmail.com
  2015 Stereo capability added by Giovanni Giorgi, jj(at)gioorgi.com
-
+ 2016 direct access functions to underlying synthesizer by ch
 
  This library is free software; you can redistribute it and/or
  modify it under the terms of the GNU Lesser General Public
@@ -51,18 +53,17 @@ Simply put, the SID Voice2 is redirected to the PWM pin 10 (on ArduinoUno).
 No additional load is expected/required
 Is up to the client to know how to use this stereo capability.
 
-
-
 	
 ************************************************************************
 
 	Hardware
 	
-	processor:	ATMEGA8, ATMEGA168
-	clock:		16MHz Crystal
+	processor:	ATMEGA
+	clock:		16MHz crystal
 
-	PIN15	PB1/OC1A		8Bit PWM sound output
-	PIN19	PB0				test LED
+	Arduino Uno PWM Audio Pins:
+	
+	Pin9, Pin10 // left, right audio output
 
 ***************************************************************************/
 
@@ -79,6 +80,7 @@ static uint8_t rightOutput;   // pin9
 static uint8_t leftOutput;    // pin 10 GG Addon for StereoSID
 static Sid_t Sid;
 static Oscillator_t osc[OSCILLATORS];
+
 /**
  * Initialize Arduino Register. Take control of Timer 1 and Timer 2.
  * Timer 1 will be used for PWM output (aka Analog-approximation)
@@ -96,6 +98,7 @@ static Oscillator_t osc[OSCILLATORS];
  + http://sphinx.mythic-beasts.com/~markt/ATmega-timers.html
  + http://www.avrfreaks.net/forum/tut-c-newbies-guide-avr-pwm-incomplete?name=PNphpBB2&file=viewtopic&t=68302 
 */
+
 void initialize()
 {
 	// TIMER1 used to generate sound output
@@ -294,18 +297,24 @@ static void envelopes()
 	interrupt routine timer 1 overflow
 	- set PWM output
 
-
+	very fast 62.5kHz intterrupt frequency
+	
+	Any calculation in this loop would mean to much processing load
+	for the 16Mhz Atmega. Therefore a slower intterupt is needed
+	
 ************************************************************************/
 ISR(TIMER1_OVF_vect)
 {
 	OCR1A = rightOutput; // Output to PWM
-        OCR1B = leftOutput;
+	OCR1B = leftOutput;
 }
-
 
 /************************************************************************
 
-	interrupt routine timer 2 16kHz
+	interrupt routine timer 2 
+	
+	slower interrupt routine with 16kHz to reduce processing load
+	
 	- calculate waverform phases
 	- calculate waveforms
 	- calculate attack decay release (1kHz)
@@ -325,7 +334,6 @@ ISR(TIMER2_COMP_vect)
 	}
 }
 #else
-
 ISR(TIMER2_COMPA_vect)
 {
 	static uint8_t mscounter = 0;
@@ -346,7 +354,8 @@ ISR(TIMER2_COMPA_vect)
 void SID::begin()
 {
 	pinMode(9, OUTPUT);
-        pinMode(10, OUTPUT);
+    pinMode(10, OUTPUT);
+	
 	initialize();
 		
 	//initialize SID-registers	
@@ -375,7 +384,7 @@ void SID::begin()
 	values to some internal settings of the emulator. 
 	To select this registers and to start the calculation, the switch/
 	case statement is used.
-	For instance: If setting the SID envelope register, new attach, decay
+	For instance: If setting the SID envelope register, new attack, decay
 	sustain times are calculated.
 	If an invalid register is requested the returned value will be 0.
 
@@ -455,7 +464,6 @@ void SID::setfreq(Voice_t *voice,uint16_t freq)
 	osc[n].freq_coefficient=templong*4000/SAMPLEFREQ;
 }
 
-
 void SID::setenvelope(Voice_t *voice)
 {
 	uint8_t n;
@@ -486,6 +494,78 @@ void SID::play(uint8_t voice, uint16_t freq){
   set_register(voice+1,high);
 }
 
+///////////////////////////////////////////////////////////////////////////////////
+// direct access functions to underlying synthesizer //////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
+void SID::setFrequency(uint8_t voiceNumber, uint16_t frequency_Hz)
+{
+	osc[voiceNumber].freq_coefficient=(uint32_t) frequency_Hz*17*4000/SAMPLEFREQ;
+}
+
+/*
+// waveform
+#define TRIANGLE (1<<4)
+#define SAWTOOTH (1<<5)
+#define RECTANGLE (1<<6)
+#define NOISE (1<<7)
+*/
+void SID::setWaveForm(uint8_t voiceNumber,uint8_t waveform)
+{
+	uint8_t temp;
+	
+	temp=Sid.block.voice[voiceNumber].ControlReg;
+	temp&=0x0F; // clear upper bits
+	temp|=waveform; // set waveform bits
+	Sid.block.voice[voiceNumber].ControlReg=temp;
+	if(waveform==RECTANGLE)
+	{
+		Sid.block.voice[voiceNumber].PW=512; // 50% pulse width
+	}
+}
+
+// Before calling this function, call setWaveForm(uint8_t voiceNumber,RECTANGLE)
+// pulseWidth=128 ==> 50% duty cycle
+void SID::setPWM(uint8_t voiceNumber, uint8_t pulseWidth)
+{
+	Sid.block.voice[voiceNumber].PW=(uint16_t)pulseWidth<<4;
+}
+
+// https://en.wikipedia.org/wiki/Synthesizer#Attack_Decay_Sustain_Release_.28ADSR.29_envelope
+// tbd: not working correct
+void SID::setADSRsidUnits(uint8_t voiceNumber,uint16_t attack, uint16_t decay, uint8_t sustain, uint16_t release)
+{
+	uint8_t n=voiceNumber;
+	uint8_t	AttackDecay;	// bit0-3 decay, bit4-7 attack
+	uint8_t	SustainRelease;	// bit0-3 release, bit4-7 sustain
+	
+	AttackDecay    = attack<<4+decay;	// bit0-3 decay, bit4-7 attack
+	SustainRelease = sustain<<4+release;	// bit0-3 release, bit4-7 sustain
+	
+	Voice_t *voice=&Sid.block.voice[n];
+	
+	voice->AttackDecay=AttackDecay;
+	voice->SustainRelease=SustainRelease;
+	
+	osc[n].level_sustain=(voice->SustainRelease>>4)*SUSTAINFACTOR;
+	osc[n].m_attack=MAXLEVEL/AttackRate[voice->AttackDecay>>4];
+	osc[n].m_decay=(MAXLEVEL-osc[n].level_sustain*SUSTAINFACTOR)/DecayReleaseRate[voice->AttackDecay&0x0F];
+	osc[n].m_release=(osc[n].level_sustain)/DecayReleaseRate[voice->SustainRelease&0x0F];
+	osc[n].attackdecay_flag=true;
+}
+
+// start tone
+void SID::noteOn(uint8_t voiceNumber)
+{
+	//osc[voiceNumber].attackdecay_flag=true;
+
+	Sid.block.voice[voiceNumber].ControlReg=Sid.block.voice[voiceNumber].ControlReg|GATE; // GATE ON
+}
+
+void SID::noteOff(uint8_t voiceNumber)
+{
+	Sid.block.voice[voiceNumber].ControlReg=Sid.block.voice[voiceNumber].ControlReg&=~GATE; // GATE OFF
+}
+
 /**
 ----------------
 A Midnight Piano
@@ -510,8 +590,6 @@ void SID::loadPiano(uint8_t voice){
 
 }
 
-
-
 /** Fast way of configuring a voice,  ADSR included. 
     ReleasePoint is unimplemented. 
     It seems how much 1/60 of seconds the note will last.
@@ -531,6 +609,7 @@ void SID::loadPiano(uint8_t voice){
      
       
     }
+	
 /* GG Follow complex functions */
 void SID::playTestIntro() {
   loadPiano(VOICE1_Right);
@@ -546,24 +625,8 @@ void SID::playTestIntro() {
     delay(90);
     play(VOICE2,midi2Sid(MIDI::nG4));
     play(VOICE1,midi2Sid(i+1));
-    delay(90);
-    //play(VOICE3,midi2Sid(MIDI::nD5));
-    //delay(50);    
+    delay(90);  
   } 
-
-  // // play a tadalike
-  // play(VOICE1,midi2Sid(60 /*DO*/));
-  // delay(200);
-  // play(VOICE2,midi2Sid(62 /*RE*/));
-  // delay(200);
-  // play(VOICE1,0);
-  // play(VOICE2,0);
-  // // Hmmm Too voice seems distort on piezo...time to aplify better?
-  // play(VOICE1, midi2Sid(64 /*MI*/));
-  // delay(250);
-  // play(VOICE1,0);
-  // play(VOICE2, midi2Sid(60 /*DO*/));
-  // delay(250);  
   play(VOICE3,0); 
   play(VOICE2,0); 
   play(VOICE1,0); 
