@@ -292,6 +292,7 @@ static void envelopes()
 	}
 }
 
+
 // testpin is arduino uno pin 7 ==> PD7
 //#define DEBUGSID
 
@@ -312,8 +313,6 @@ static void envelopes()
 	interrupt routine timer 1 overflow
 	- set PWM output
 
-
-	
 	Any calculation in this loop would mean to much processing load
 	for the 16Mhz Atmega. Therefore a slower intterupt is needed
 	
@@ -352,6 +351,7 @@ ISR(TIMER2_COMP_vect)
 		mscounter = 0;
 	}
 }
+
 #else
 ISR(TIMER2_COMPA_vect)
 {
@@ -595,6 +595,17 @@ void SID::noteOff(uint8_t voiceNumber)
 	Sid.block.voice[voiceNumber].ControlReg=Sid.block.voice[voiceNumber].ControlReg&=~GATE; // GATE OFF
 }
 
+void SID::setAmplitude(uint8_t voiceNumber, uint16_t amplitude)
+{
+	// force envelope generator into release cycle
+	Sid.block.voice[voiceNumber].ControlReg=Sid.block.voice[voiceNumber].ControlReg&=~GATE; // GATE OFF
+	osc[voiceNumber].m_release=0; // prevent releasing in envelope loop
+	osc[voiceNumber].amp=amplitude<<7;
+	
+	//osc[voiceNumber].level_sustain=0; // set sustain level to zero to prevent setting sustain_level in envelope loop
+	//osc[voiceNumber].m_decay=0; // prevent decay in envelope loop
+	//osc[voiceNumber].attackdecay_flag=false;	
+}
 /**
 ----------------
 A Midnight Piano

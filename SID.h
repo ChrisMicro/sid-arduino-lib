@@ -134,6 +134,8 @@ void setPWM(uint8_t voiceNumber, uint8_t pulseWidth);
 void setADSRsidUnits(uint8_t voiceNumber,uint16_t attack, uint16_t decay, uint8_t sustain, uint16_t release);
 void noteOn(uint8_t voiceNumber);
 void noteOff(uint8_t voiceNumber);
+void setAmplitude(uint8_t voiceNumber, uint16_t amplitude);
+
   
   // library-accessible "private" interface  
   private:
