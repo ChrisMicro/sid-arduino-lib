@@ -292,12 +292,27 @@ static void envelopes()
 	}
 }
 
+// testpin is arduino uno pin 7 ==> PD7
+//#define DEBUGSID
+
+#ifdef DEBUGSID
+	#define INITTESTPIN {DDRD|=0x80;}
+	#define TESTPIN_ON  {PORTD|=0x80;}
+	#define TESTPIN_OFF {PORTD&=~0x80;}
+	#define TESTPIN_TOGGLE {PORTD=PIND^0x80;}
+#else
+	#define INITTESTPIN
+	#define TESTPIN_ON
+	#define TESTPIN_OFF 
+	#define TESTPIN_TOGGLE
+#endif
+
 /************************************************************************
 
 	interrupt routine timer 1 overflow
 	- set PWM output
 
-	very fast 62.5kHz intterrupt frequency
+
 	
 	Any calculation in this loop would mean to much processing load
 	for the 16Mhz Atmega. Therefore a slower intterupt is needed
@@ -305,9 +320,13 @@ static void envelopes()
 ************************************************************************/
 ISR(TIMER1_OVF_vect)
 {
+	//TESTPIN_TOGGLE
+	//TESTPIN_ON;
 	OCR1A = rightOutput; // Output to PWM
 	OCR1B = leftOutput;
+	//TESTPIN_OFF;
 }
+
 
 /************************************************************************
 
@@ -337,6 +356,9 @@ ISR(TIMER2_COMP_vect)
 ISR(TIMER2_COMPA_vect)
 {
 	static uint8_t mscounter = 0;
+
+	TESTPIN_ON;
+ 	
 	OCR2A += SAMPLERATECOUNT; // Output to PWM
 	waveforms(); //~36us
 	
@@ -345,6 +367,8 @@ ISR(TIMER2_COMPA_vect)
 		envelopes(); //~16us
 		mscounter = 0;
 	}
+
+	TESTPIN_OFF; 
 }
 #endif	
 
@@ -353,6 +377,7 @@ ISR(TIMER2_COMPA_vect)
 
 void SID::begin()
 {
+	INITTESTPIN;
 	pinMode(9, OUTPUT);
     pinMode(10, OUTPUT);
 	
@@ -499,8 +524,8 @@ void SID::play(uint8_t voice, uint16_t freq){
 ///////////////////////////////////////////////////////////////////////////////////
 void SID::setFrequency(uint8_t voiceNumber, uint16_t frequency_Hz)
 {
-	//osc[voiceNumber].freq_coefficient=(uint32_t) frequency_Hz*17*4000/SAMPLEFREQ;
-	uint32_t fc=(uint32_t) frequency_Hz*66049/SAMPLEFREQ;
+	uint32_t fc=(uint32_t) frequency_Hz*0x10000/SAMPLEFREQ;
+
 	cli();
 	osc[voiceNumber].freq_coefficient=fc;
 	sei();

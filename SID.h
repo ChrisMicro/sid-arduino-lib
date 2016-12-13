@@ -30,7 +30,13 @@
 #define SUSTAINFACTOR ( MAXLEVEL / 15 )
 
 #define SAMPLEFREQ 16000L
-#define SAMPLERATECOUNT (F_CPU/(8*SAMPLEFREQ)-1)
+
+//old value: wrong frequency
+//#define SAMPLERATECOUNT (F_CPU/(8*SAMPLEFREQ)-1) // 124
+//16Mhz/124/8
+//ans = 16129 Hz
+// measured with the frequency counter, this seems to give the correct 16kHz sampling frequency
+#define SAMPLERATECOUNT (F_CPU/(8*SAMPLEFREQ)) // 125
 
 #define ENVELOPE_FREQ 1000L  
 #define MSCOUNT (SAMPLEFREQ/ENVELOPE_FREQ-1)
