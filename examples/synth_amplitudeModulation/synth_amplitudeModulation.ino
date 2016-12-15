@@ -1,22 +1,22 @@
 /*
-   Arduino SID simulator amplitude modulation
-
-   Hardware Platform: Arduino UNO
-
-   sound outputs: Pin9, pin10
-
-   This are PWM-outputs. To improve sound quality connect a RC-low pass filter between Audio jack
-
-   Mono Operation:
-
-   PIN9  --- 1K ---|
-   PIN10 --- 1K ---o---------------> Audio Jack
-                   |
-                  --- 100 nF
-                  ---
-                   |
-                   |
-                  GND
+ *  Arduino SID simulator amplitude modulation
+ *
+ *  Hardware Platform: Arduino UNO
+ *
+ * sound outputs: Pin9
+ * 
+ * This are PWM-outputs. To improve sound quality connect a RC-low pass filter between Audio jack
+ * 
+ * Mono Operation:
+ * 
+ * PIN9  --- 1K ---|
+ *                 o---------------> Audio Jack
+ *                 |
+ *                --- 100 nF    
+ *                ---
+ *                 |
+ *                 |
+ *                GND
 
 */
 
@@ -42,12 +42,15 @@ void loop()
   float phaseFactor=4*PI*samplingTime/loopTime;
 
   int counter=0;
+  
   while(1)
   {
     for (int n = 0; n < 255; n++)
     {
-      amplitude=abs(255*sin(n*phaseFactor))+10;
+	  // create a sine wave envelope	
+      amplitude = abs(255*sin(n*phaseFactor))+10;
       
+	  // set amplitude
       mySid.setAmplitude(0, amplitude);
       
       delay(1);
@@ -55,6 +58,7 @@ void loop()
     
     counter++;
     
+	// test a bunch of waveforms
     if(counter>10) mySid.setWaveForm(0, NOISE);
     if(counter>20) mySid.setFrequency(0, 1000);
     if(counter>30) mySid.setFrequency(0, counter*10);
@@ -62,8 +66,8 @@ void loop()
     if(counter>50) counter=0;
     if(counter==0) 
     {
-      loopTime/=2;
-      phaseFactor=4*PI*samplingTime/loopTime;
+      loopTime/=2; // increase speed
+      phaseFactor=4*PI*samplingTime/loopTime; // increase modulation frequency
       mySid.setWaveForm(0, TRIANGLE);
     }
     

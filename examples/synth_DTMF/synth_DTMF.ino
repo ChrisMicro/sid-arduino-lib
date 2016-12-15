@@ -1,16 +1,17 @@
  /*
  * Arduino SID DUAL TONE Dialing
- * 
+ * https://en.wikipedia.org/wiki/Dual-tone_multi-frequency_signaling
+ *
  * Hardware Platform: Arduino UNO
  * 
- * sound outputs: Pin9, pin10
+ * sound outputs: Pin9
  * 
  * This are PWM-outputs. To improve sound quality connect a RC-low pass filter between Audio jack
  * 
  * Mono Operation:
  * 
  * PIN9  --- 1K ---|
- * PIN10 --- 1K ---o---------------> Audio Jack
+ *                 o---------------> Audio Jack
  *                 |
  *                --- 100 nF    
  *                ---
@@ -25,7 +26,6 @@
 
 SID mySid;
 
-// frequencies adopted from: https://en.wikipedia.org/wiki/Dual-tone_multi-frequency_signaling
 int DTMF[13][2]={
   {941,1336}, // frequencies for touch tone 0
   {697,1209}, // frequencies for touch tone 1
@@ -45,24 +45,22 @@ void setup()
 {
   mySid.begin();
   
-  mySid.set_register(ATTACKDECAY+VOICE1,0); 
-  mySid.set_register(SUSTAINRELEASE+VOICE1,0xF0);
+  mySid.setADSR(0,1,1,255,1); 
   mySid.setWaveForm(0,TRIANGLE);
 
-  mySid.set_register(ATTACKDECAY+VOICE2,0); 
-  mySid.set_register(SUSTAINRELEASE+VOICE2,0xF0);
-  mySid.setWaveForm(1,TRIANGLE);
+  mySid.setADSR(2,1,1,255,1); 
+  mySid.setWaveForm(2,TRIANGLE);
 }
 
 void playDTMF(uint8_t digit, uint16_t duration_ms)
 {
   mySid.setFrequency(0,DTMF[digit][0]);
-  mySid.setFrequency(1,DTMF[digit][1]);
+  mySid.setFrequency(2,DTMF[digit][1]);
   mySid.noteOn(0);
-  mySid.noteOn(1);
+  mySid.noteOn(2);
   delay(duration_ms);
   mySid.noteOff(0);
-  mySid.noteOff(1);
+  mySid.noteOff(2);
   delay(50);
 }
 

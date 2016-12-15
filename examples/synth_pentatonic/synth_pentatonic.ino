@@ -1,6 +1,9 @@
 /*
  * Arduino SID simulator meditave music
  * 
+ * pentatonic music like played on a hang drum
+ * https://en.wikipedia.org/wiki/Hang_(instrument)
+ * 
  * original version: Jeremy Fonte
  * addapted and corrected for the sid library
  * 2016 ch
@@ -13,24 +16,14 @@
 
 SID mySid;
 
-#define SLOWATTACK 0xB0
-#define FASTATTACK 0x00
-#define SLOWDECAY 0x0A
-#define FASTDECAY 0x00
-#define SUSTAINQUITE 0x00
-#define SUSTAINNORM  0xA0
-#define SUSTAINLOUD 0xF0
-#define SLOWRELEASE 0x09
-#define FASTRELEASE 0x00
-
 void playSound(long frequency, long length) 
 {
   mySid.setFrequency(0,frequency);
   
   mySid.noteOn(0);
-  delay(length/10);
-  mySid.noteOff(0);
   delay(50);
+  mySid.noteOff(0);
+  delay(length/10);
 }
 
 // http://fonte.me/arduino/#Musician
@@ -51,9 +44,8 @@ int notes[16];
 void setup() 
 {
   mySid.begin();
-  mySid.set_register(ATTACKDECAY+VOICE1,FASTATTACK+SLOWDECAY); 
-  mySid.set_register(SUSTAINRELEASE+VOICE1,SUSTAINNORM+5);
-
+  
+  mySid.setADSR(0,30,30,200,250); 
   mySid.setWaveForm(0,TRIANGLE);
 
   notes[1] = 131;
@@ -79,8 +71,6 @@ void loop() {
 
   static uint8_t count = 0;
 
- // setLed(EYE_LED_LEFT,  !((count) & 01));
- // setLed(EYE_LED_RIGHT, (count) & 01);
   count++;
 
   noteStep = random(-3, 3);

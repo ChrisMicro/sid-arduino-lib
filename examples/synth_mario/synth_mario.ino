@@ -3,14 +3,14 @@
  * 
  * Hardware Platform: Arduino UNO
  * 
- * sound outputs: Pin9, pin10
+ * Mono Operation:
+ * 
+ * sound outputs: Pin9
  * 
  * This are PWM-outputs. To improve sound quality connect a RC-low pass filter between Audio jack
  * 
- * Mono Operation:
- * 
  * PIN9  --- 1K ---|
- * PIN10 --- 1K ---o---------------> Audio Jack
+ *                 o---------------> Audio Jack
  *                 |
  *                --- 100 nF    
  *                ---
@@ -25,21 +25,10 @@
 
 SID mySid;
 
-#define SLOWATTACK 0xB0
-#define FASTATTACK 0x00
-#define SLOWDECAY 0x0A
-#define FASTDECAY 0x00
-#define SUSTAINQUITE 0x00
-#define SUSTAINNORM  0xA0
-#define SUSTAINLOUD 0xF0
-#define SLOWRELEASE 0x09
-#define FASTRELEASE 0x00
-
 void setup() 
 {
   mySid.begin();
-  mySid.set_register(ATTACKDECAY+VOICE1,FASTATTACK+SLOWDECAY); 
-  mySid.set_register(SUSTAINRELEASE+VOICE1,SUSTAINNORM+5);
+  mySid.setADSR(0,10,30,200,200); 
   mySid.setWaveForm(0,TRIANGLE);
 }
 
@@ -185,14 +174,6 @@ void sing(int s){
 
        buzz(melodyPin, underworld_melody[thisNote],noteDuration);
 
-       // to distinguish the notes, set a minimum time between them.
-       // the note's duration + 30% seems to work well:
-       //int pauseBetweenNotes = noteDuration * 1.30;
-       //delay(pauseBetweenNotes);
-
-       // stop the tone playing:
-       //buzz(melodyPin, 0,noteDuration);
-
     }
 
    }else{
@@ -207,14 +188,6 @@ void sing(int s){
        int noteDuration = 1000/tempo[thisNote];
 
        buzz(melodyPin, melody[thisNote],noteDuration);
-
-       // to distinguish the notes, set a minimum time between them.
-       // the note's duration + 30% seems to work well:
-       //int pauseBetweenNotes = noteDuration * 1.30;
-       //delay(pauseBetweenNotes);
-
-       // stop the tone playing:
-       //buzz(melodyPin, 0,noteDuration);
 
     }
   }

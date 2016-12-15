@@ -1,16 +1,16 @@
 /*
- * Arduino SID simulator demonstration
+ * Arduino SID simulator waveform demonstration
  * 
  * Hardware Platform: Arduino UNO
  * 
- * sound outputs: Pin9, pin10
+ * sound outputs: Pin9
  * 
  * This are PWM-outputs. To improve sound quality connect a RC-low pass filter between Audio jack
  * 
  * Mono Operation:
  * 
  * PIN9  --- 1K ---|
- * PIN10 --- 1K ---o---------------> Audio Jack
+ *                 o---------------> Audio Jack
  *                 |
  *                --- 100 nF    
  *                ---
@@ -25,27 +25,18 @@
 
 SID mySid;
 
-#define SLOWATTACK 0xB0
-#define FASTATTACK 0x00
-#define SLOWDECAY 0x0A
-#define FASTDECAY 0x00
-#define SUSTAINQUITE 0x00
-#define SUSTAINNORM  0xA0
-#define SUSTAINLOUD 0xF0
-#define SLOWRELEASE 0x09
-#define FASTRELEASE 0x00
-
 void setup() 
 {
   mySid.begin();
-  mySid.set_register(ATTACKDECAY+VOICE1,FASTATTACK+SLOWDECAY); 
-  mySid.set_register(SUSTAINRELEASE+VOICE1,SUSTAINNORM+5);
+
+  // set ADSR envelope
+  // https://en.wikipedia.org/wiki/Synthesizer#Attack_Decay_Sustain_Release_.28ADSR.29_envelope
+  // uint8_t voiceNumber,uint16_t attack_ms, uint16_t decay_ms, uint8_t sustain_level, uint16_t release_ms
+  mySid.setADSR(0,10,1,200,200); 
 }
 
 void loop() 
 {
-  int a=analogRead(0);
- 
   mySid.setFrequency(0,440);
 
   mySid.setWaveForm(0,TRIANGLE);

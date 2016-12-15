@@ -73,8 +73,8 @@ Is up to the client to know how to use this stereo capability.
 #include "SID.h"
 
 // attack, decay, release envelope timings
-const static uint16_t AttackRate[16]={2,4,16,24,38,58,68,80,100,250,500,800,1000,3000,5000,8000};
-const static uint16_t DecayReleaseRate[16]={6,24,48,72,114,168,204,240,300,750,1500,2400,3000,9000,15000,24000};
+const static uint16_t AttackRate_ms[16]={2,4,16,24,38,58,68,80,100,250,500,800,1000,3000,5000,8000};
+const static uint16_t DecayReleaseRate_ms[16]={6,24,48,72,114,168,204,240,300,750,1500,2400,3000,9000,15000,24000};
 	
 static uint8_t rightOutput;   // pin9
 static uint8_t leftOutput;    // pin 10 GG Addon for StereoSID
@@ -176,7 +176,7 @@ static void waveforms()
 	static int16_t temp,temp1;
 	static uint8_t i,j,k;
 	static uint16_t noise = 0xACE1;
-	static uint8_t noise8;
+	static int8_t noise8;
 	static uint16_t tempphase;
 
 	// noise generator based on Galois LFSR
@@ -497,9 +497,9 @@ void SID::setenvelope(Voice_t *voice)
 	osc[n].attackdecay_flag=true;
 
 	osc[n].level_sustain=(voice->SustainRelease>>4)*SUSTAINFACTOR;
-	osc[n].m_attack=MAXLEVEL/AttackRate[voice->AttackDecay>>4];
-	osc[n].m_decay=(MAXLEVEL-osc[n].level_sustain*SUSTAINFACTOR)/DecayReleaseRate[voice->AttackDecay&0x0F];
-	osc[n].m_release=(osc[n].level_sustain)/DecayReleaseRate[voice->SustainRelease&0x0F];
+	osc[n].m_attack=MAXLEVEL/AttackRate_ms[voice->AttackDecay>>4];
+	osc[n].m_decay=(MAXLEVEL-osc[n].level_sustain*SUSTAINFACTOR)/DecayReleaseRate_ms[voice->AttackDecay&0x0F];
+	osc[n].m_release=(osc[n].level_sustain)/DecayReleaseRate_ms[voice->SustainRelease&0x0F];
 }
 
 
@@ -560,26 +560,17 @@ void SID::setPWM(uint8_t voiceNumber, uint8_t pulseWidth)
 }
 
 // https://en.wikipedia.org/wiki/Synthesizer#Attack_Decay_Sustain_Release_.28ADSR.29_envelope
-// tbd: not working correct
-void SID::setADSRsidUnits(uint8_t voiceNumber,uint16_t attack, uint16_t decay, uint8_t sustain, uint16_t release)
+void SID::setADSR(uint8_t voiceNumber,uint16_t attack_ms, uint16_t decay_ms, uint8_t sustain_level, uint16_t release_ms)
 {
 	uint8_t n=voiceNumber;
-	uint8_t	AttackDecay;	// bit0-3 decay, bit4-7 attack
-	uint8_t	SustainRelease;	// bit0-3 release, bit4-7 sustain
-	
-	AttackDecay    = attack<<4+decay;	// bit0-3 decay, bit4-7 attack
-	SustainRelease = sustain<<4+release;	// bit0-3 release, bit4-7 sustain
-	
-	Voice_t *voice=&Sid.block.voice[n];
-	
-	voice->AttackDecay=AttackDecay;
-	voice->SustainRelease=SustainRelease;
-	
-	osc[n].level_sustain=(voice->SustainRelease>>4)*SUSTAINFACTOR;
-	osc[n].m_attack=MAXLEVEL/AttackRate[voice->AttackDecay>>4];
-	osc[n].m_decay=(MAXLEVEL-osc[n].level_sustain*SUSTAINFACTOR)/DecayReleaseRate[voice->AttackDecay&0x0F];
-	osc[n].m_release=(osc[n].level_sustain)/DecayReleaseRate[voice->SustainRelease&0x0F];
-	osc[n].attackdecay_flag=true;
+
+	Sid.block.voice[voiceNumber].ControlReg=Sid.block.voice[voiceNumber].ControlReg&=~GATE; // GATE OFF
+
+	osc[n].level_sustain=(uint32_t)sustain_level*MAXLEVEL>>8; 
+	osc[n].m_attack=MAXLEVEL/attack_ms;
+	osc[n].m_decay=(MAXLEVEL-osc[n].level_sustain*SUSTAINFACTOR)/decay_ms;
+	osc[n].m_release=(osc[n].level_sustain)/release_ms;
+
 }
 
 // start tone
@@ -601,10 +592,6 @@ void SID::setAmplitude(uint8_t voiceNumber, uint16_t amplitude)
 	Sid.block.voice[voiceNumber].ControlReg=Sid.block.voice[voiceNumber].ControlReg&=~GATE; // GATE OFF
 	osc[voiceNumber].m_release=0; // prevent releasing in envelope loop
 	osc[voiceNumber].amp=amplitude<<7;
-	
-	//osc[voiceNumber].level_sustain=0; // set sustain level to zero to prevent setting sustain_level in envelope loop
-	//osc[voiceNumber].m_decay=0; // prevent decay in envelope loop
-	//osc[voiceNumber].attackdecay_flag=false;	
 }
 /**
 ----------------
